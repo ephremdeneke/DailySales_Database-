@@ -44,7 +44,7 @@ function getSheet(name) {
 // ===== Database.gs =====
 // Database.gs
 const HEADERS = {};
-HEADERS[SHEETS.USERS] = ["userId","name","email","role","shopId","active","createdAt"];
+HEADERS[SHEETS.USERS] = ["userId","name","email","role","shopId","password","active","createdAt"];
 HEADERS[SHEETS.SHOPS] = ["shopId","shopName","location","managerId","active","createdAt"];
 HEADERS[SHEETS.PRODUCTS] = ["productId","productName","productNameAm","sku","sellingPrice","active","createdAt"];
 HEADERS[SHEETS.SETTINGS] = ["key","value","updatedAt"];
@@ -166,11 +166,15 @@ function getRegisteredUserById(userId) {
   return users.find(function(u){ return String(u.userId) === String(userId) && u.active !== false && u.active !== "FALSE"; });
 }
 
-// Login by username/email/name (no password) - used when Google OAuth not configured
+// Login by username/email/name + password - used when Google OAuth not configured
 function loginUser(payload) {
   const identifier = payload.username || payload.email || payload.name || payload.idToken;
   const user = getRegisteredUserByEmailOrName(identifier);
   if (!user) return { ok: false, error: "User not found. Check the Users sheet." };
+  const storedPassword = String(user.password || "");
+  if (storedPassword !== "" && String(payload.password || "") !== storedPassword) {
+    return { ok: false, error: "Invalid password." };
+  }
   return { ok: true, user: { userId: user.userId, name: user.name, email: user.email, role: user.role, shopId: user.shopId }, token: String(user.userId) };
 }
 
@@ -301,6 +305,7 @@ function createUser(payload, user) {
     email: payload.email,
     role: payload.role,
     shopId: payload.shopId || "",
+    password: payload.password || "",
     active: true,
     createdAt: new Date().toISOString(),
   };
@@ -313,7 +318,7 @@ function updateUser(payload, user) {
   requireRole(user, ["ADMIN"]);
   if (!payload.userId) throw new Error("userId required");
   const updates = {};
-  ["name","email","role","shopId","active"].forEach(function(k){
+  ["name","email","role","shopId","password","active"].forEach(function(k){
     if (payload[k] !== undefined) updates[k] = payload[k];
   });
   updateRow(SHEETS.USERS, "userId", payload.userId, updates);
@@ -960,13 +965,13 @@ function seedUsers() {
   const existing = sheetToObjects(SHEETS.USERS);
   if (existing.length > 0) return { inserted: 0, message: "Users already exist" };
   const rows = [
-    ["u_admin","Admin User","admin@demo.com","ADMIN",""],
-    ["u_wh","Warehouse Manager","warehouse@demo.com","WAREHOUSE_MANAGER",""],
-    ["u_shop1","Gombora Shop Manager","gombora@demo.com","SHOP_MANAGER","shop_1"],
-    ["u_shop2","Hospital Shop Manager","hospital@demo.com","SHOP_MANAGER","shop_2"],
+    ["u_admin","Admin User","admin@demo.com","ADMIN","","Admin@123"],
+    ["u_wh","Warehouse Manager","warehouse@demo.com","WAREHOUSE_MANAGER","","Warehouse@123"],
+    ["u_shop1","Gombora Shop Manager","gombora@demo.com","SHOP_MANAGER","shop_1","Gombora@123"],
+    ["u_shop2","Hospital Shop Manager","hospital@demo.com","SHOP_MANAGER","shop_2","Hospital@123"],
   ];
   rows.forEach(function(r){
-    appendObject(SHEETS.USERS, { userId: r[0], name: r[1], email: r[2], role: r[3], shopId: r[4], active: true, createdAt: new Date().toISOString() });
+    appendObject(SHEETS.USERS, { userId: r[0], name: r[1], email: r[2], role: r[3], shopId: r[4], password: r[5], active: true, createdAt: new Date().toISOString() });
   });
   // shops
   const shops = sheetToObjects(SHEETS.SHOPS);

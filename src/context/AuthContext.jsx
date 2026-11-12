@@ -18,9 +18,9 @@ export function AuthProvider({ children }) {
   };
 
   // Username/email login against the real backend.
-  const login = async (username) => {
+  const login = async (username, password) => {
     const { api } = await import("../services/api.js");
-    const res = await api.login({ username });
+    const res = await api.login({ username, password });
     const u = res.user || res;
     const t = res.token || (u && u.userId) || "";
     persist(u, t);

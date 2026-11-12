@@ -1,6 +1,6 @@
 // Database.gs
 const HEADERS = {};
-HEADERS[SHEETS.USERS] = ["userId","name","email","role","shopId","active","createdAt"];
+HEADERS[SHEETS.USERS] = ["userId","name","email","role","shopId","password","active","createdAt"];
 HEADERS[SHEETS.SHOPS] = ["shopId","shopName","location","managerId","active","createdAt"];
 HEADERS[SHEETS.PRODUCTS] = ["productId","productName","productNameAm","sku","sellingPrice","active","createdAt"];
 HEADERS[SHEETS.SETTINGS] = ["key","value","updatedAt"];

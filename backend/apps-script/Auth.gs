@@ -35,11 +35,15 @@ function getRegisteredUserById(userId) {
   return users.find(function(u){ return String(u.userId) === String(userId) && u.active !== false && u.active !== "FALSE"; });
 }
 
-// Login by username/email/name (no password) - used when Google OAuth not configured
+// Login by username/email/name + password - used when Google OAuth not configured
 function loginUser(payload) {
   const identifier = payload.username || payload.email || payload.name || payload.idToken;
   const user = getRegisteredUserByEmailOrName(identifier);
   if (!user) return { ok: false, error: "User not found. Check the Users sheet." };
+  const storedPassword = String(user.password || "");
+  if (storedPassword !== "" && String(payload.password || "") !== storedPassword) {
+    return { ok: false, error: "Invalid password." };
+  }
   return { ok: true, user: { userId: user.userId, name: user.name, email: user.email, role: user.role, shopId: user.shopId }, token: String(user.userId) };
 }
 

@@ -14,7 +14,7 @@ export default function Users() {
   const { data, loading, reload } = useFetch(() => api.listUsers());
   const { data: shops } = useFetch(() => api.listShops());
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", role: "SHOP_MANAGER", shopId: "" });
+  const [form, setForm] = useState({ name: "", email: "", password: "", role: "SHOP_MANAGER", shopId: "" });
 
   const save = async () => {
     await api.createUser({ ...form, shopId: form.shopId || null });
@@ -40,6 +40,7 @@ export default function Users() {
       <Modal open={open} onClose={() => setOpen(false)} title={t("common.add") + " " + t("nav.users")}>
         <FormInput label={t("common.name")} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         <FormInput label={t("auth.email")} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+      <FormInput label="Password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
         <div className="mb-3">
           <label className="label">{t("auth.role")}</label>
           <select className="input" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>

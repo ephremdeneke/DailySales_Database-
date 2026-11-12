@@ -13,6 +13,7 @@ function createUser(payload, user) {
     email: payload.email,
     role: payload.role,
     shopId: payload.shopId || "",
+    password: payload.password || "",
     active: true,
     createdAt: new Date().toISOString(),
   };
@@ -25,7 +26,7 @@ function updateUser(payload, user) {
   requireRole(user, ["ADMIN"]);
   if (!payload.userId) throw new Error("userId required");
   const updates = {};
-  ["name","email","role","shopId","active"].forEach(function(k){
+  ["name","email","role","shopId","password","active"].forEach(function(k){
     if (payload[k] !== undefined) updates[k] = payload[k];
   });
   updateRow(SHEETS.USERS, "userId", payload.userId, updates);

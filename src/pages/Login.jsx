@@ -3,13 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext.jsx";
 import { LogIn } from "lucide-react";
+import FormInput from "../components/common/FormInput.jsx";
 
 
 export default function Login() {
   const { t } = useTranslation();
   const { user, login } = useAuth();
   const navigate = useNavigate();
-  const [username, setUsername] = useState("admin@demo.com");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -20,7 +22,7 @@ export default function Login() {
   const submit = async (e) => {
     e.preventDefault();
     setError(""); setLoading(true);
-    try { await login(username); }
+    try { await login(username, password); }
     catch (err) { setError(err.message); }
     finally { setLoading(false); }
   };
@@ -34,6 +36,8 @@ export default function Login() {
         <form onSubmit={submit}>
           <label className="label">Username / Email</label>
           <input className="input mb-4" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="admin@demo.com" />
+          <label className="label">Password</label>
+          <input className="input mb-4" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" />
           {error && <p className="text-red-600 text-sm mb-3">{error}</p>}
           <button type="submit" disabled={loading} className="btn-primary w-full">
             <LogIn size={18} /> {loading ? t("common.loading") : t("auth.login")}
