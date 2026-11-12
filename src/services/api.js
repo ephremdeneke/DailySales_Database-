@@ -2,7 +2,7 @@
 // Central API layer. Calls the deployed Google Apps Script web app endpoint.
 // Set VITE_API_URL in .env to the deployed Apps Script /exec URL.
 
-const API_URL = import.meta.env.VITE_API_URL || "";
+const API_URL = import.meta.env.VITE_API_URL || "https://script.google.com/macros/s/AKfycbwZ4jB24lkCarQYUdNSPELeMkcWQqb4jXCw4PZ5gEE2caoFU1X-zxLpb5T3ZPYx3qM/exec";
 
 async function call(action, payload = {}) {
   if (!API_URL || !API_URL.trim()) {
