@@ -692,7 +692,26 @@ function submitDailyReport(payload, user) {
     const products = sheetToObjects(SHEETS.PRODUCTS);
     const pmap = {};
     products.forEach(function(p){ pmap[p.productId] = p; });
-    const items = payload.items || [];
+    // Support deriving sold quantities by counting unsold (remaining) products.
+    // If unsoldItems/remainingItems are provided, sold = current shop stock - counted unsold.
+    let items = payload.items || [];
+    const rawUnsold = payload.unsoldItems || payload.remainingItems || payload.unsoldCounts || payload.countedStock;
+    if (Array.isArray(rawUnsold) && rawUnsold.length) {
+      const _shopStocks = sheetToObjects(SHEETS.SHOP_STOCK);
+      const _smap = {};
+      _shopStocks.forEach(function(s){ if (s.shopId === shopId) _smap[s.productId] = parseInt(s.quantity,10) || 0; });
+      const _derived = [];
+      rawUnsold.forEach(function(it){
+        const pid = it.productId;
+        const counted = parseInt(it.quantity, 10);
+        if (!pid || isNaN(counted) || counted < 0) throw new Error("Invalid unsold quantity: " + pid);
+        const cur = _smap[pid] || 0;
+        if (counted > cur) throw new Error("Counted unsold exceeds stock: " + pid);
+        const sold = cur - counted;
+        if (sold > 0) _derived.push({ productId: pid, quantity: sold });
+      });
+      items = _derived;
+    }
     let totalSales = 0, totalItems = 0;
     if (items.length) {
       // validate stock

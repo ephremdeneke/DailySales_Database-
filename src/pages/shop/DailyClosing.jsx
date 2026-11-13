@@ -10,7 +10,7 @@ export default function DailyClosing() {
   const { t } = useTranslation();
   const { data: stock, loading } = useFetch(() => api.getShopStock());
   const [businessDate, setBusinessDate] = useState(new Date().toISOString().slice(0, 10));
-  const [qtys, setQtys] = useState({});
+  const [unsold, setUnsold] = useState({});
   const [actualCash, setActualCash] = useState("");
   const [actualBank, setActualBank] = useState("");
   const [expenses, setExpenses] = useState("");
@@ -26,12 +26,21 @@ export default function DailyClosing() {
   const products = stock || [];
   const filtered = products.filter((p) => p.productName.toLowerCase().includes(filter.toLowerCase()));
 
-  const setQty = (id, v) => setQtys((prev) => ({ ...prev, [id]: v }));
+  const setCount = (id, v) => setUnsold((prev) => ({ ...prev, [id]: v }));
 
-  const totalRevenue = products.reduce((s, p) => {
-    const q = parseInt(qtys[p.productId], 10) || 0;
-    return s + p.sellingPrice * q;
-  }, 0);
+  const countedQty = (p) => {
+    const raw = unsold[p.productId];
+    if (raw === undefined || raw === "") return p.quantity;
+    const n = parseInt(String(raw).trim(), 10);
+    return isNaN(n) ? p.quantity : n;
+  };
+  const soldQty = (p) => {
+    const c = countedQty(p);
+    if (c < 0 || c > p.quantity) return 0;
+    return p.quantity - c;
+  };
+
+  const totalRevenue = products.reduce((s, p) => s + p.sellingPrice * soldQty(p), 0);
   const collected = (parseInt(actualCash, 10) || 0) * 100 + (parseInt(actualBank, 10) || 0) * 100;
   const expensesMinor = (parseInt(expenses, 10) || 0) * 100;
   const loansMinor = (parseInt(loans, 10) || 0) * 100;
@@ -42,12 +51,23 @@ export default function DailyClosing() {
     if (e && e.preventDefault) e.preventDefault();
     setSubmitting(true); setMsg("");
     try {
-      const payloadItems = products
-        .map((p) => ({ productId: p.productId, quantity: parseInt(qtys[p.productId], 10) || 0 }))
+      // validate counted unsold quantities
+      for (const p of products) {
+        const raw = unsold[p.productId];
+        if (raw !== undefined && raw !== "") {
+          if (!/^\d+$/.test(String(raw).trim())) { setMsg("Invalid unsold count for " + p.productName); setSubmitting(false); return; }
+          const c = parseInt(raw, 10);
+          if (c < 0 || c > p.quantity) { setMsg("Unsold count out of range for " + p.productName); setSubmitting(false); return; }
+        }
+      }
+      const unsoldPayload = products.map((p) => ({ productId: p.productId, quantity: countedQty(p) }));
+      const soldPayload = products
+        .map((p) => ({ productId: p.productId, quantity: soldQty(p) }))
         .filter((it) => it.quantity > 0);
       const r = await api.submitDailyReport({
         businessDate,
-        items: payloadItems,
+        unsoldItems: unsoldPayload,
+        items: soldPayload,
         actualCash: (parseInt(actualCash, 10) || 0) * 100,
         actualBank: (parseInt(actualBank, 10) || 0) * 100,
         expenses: expensesMinor,
@@ -64,51 +84,57 @@ export default function DailyClosing() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-slate-800">{t("nav.dailyClosing")}</h2>
-          <p className="text-sm text-slate-500">Enter quantities sold today. Leave 0 for unsold items.</p>
+          <p className="text-sm text-slate-500">Count unsold products remaining on the shelf. Sold = shop stock − unsold count.</p>
         </div>
         <FormInput label={t("common.date")} type="date" value={businessDate} onChange={(e) => setBusinessDate(e.target.value)} />
       </div>
 
       <div className="card">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-          <h3 className="text-lg font-semibold flex items-center gap-2"><Calculator size={18} /> Sold Products</h3>
+          <h3 className="text-lg font-semibold flex items-center gap-2"><Calculator size={18} /> Unsold Count (stock on hand)</h3>
           <input className="input sm:w-64" placeholder="Search product…" value={filter} onChange={(e) => setFilter(e.target.value)} />
         </div>
         <div className="overflow-x-auto max-h-[60vh]">
-          <table className="data min-w-[480px]">
+          <table className="data min-w-[640px]">
             <thead className="sticky top-0 bg-white">
               <tr>
                 <th>Product</th>
-                <th className="w-24 text-center">Qty Sold</th>
+                <th className="w-20 text-center">Stock</th>
+                <th className="w-24 text-center">Unsold</th>
+                <th className="w-20 text-center">Sold</th>
                 <th className="text-right">Unit Price</th>
                 <th className="text-right">Line Total</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((p) => {
-                const q = parseInt(qtys[p.productId], 10) || 0;
+                const c = countedQty(p);
+                const s = soldQty(p);
                 return (
                   <tr key={p.productId}>
                     <td className="font-medium">{p.productName}</td>
+                    <td className="text-center text-slate-600">{p.quantity}</td>
                     <td>
                       <input
                         type="number"
                         min="0"
+                        max={p.quantity}
                         className="input text-center"
-                        value={qtys[p.productId] || ""}
-                        onChange={(e) => setQty(p.productId, e.target.value)}
-                        placeholder="0"
+                        value={unsold[p.productId] === undefined ? "" : unsold[p.productId]}
+                        onChange={(e) => setCount(p.productId, e.target.value)}
+                        placeholder={String(p.quantity)}
                       />
                     </td>
+                    <td className="text-center font-medium text-indigo-600">{s}</td>
                     <td className="text-right text-slate-600">{(p.sellingPrice / 100).toFixed(2)}</td>
-                    <td className="text-right font-medium">{((p.sellingPrice * q) / 100).toFixed(2)}</td>
+                    <td className="text-right font-medium">{((p.sellingPrice * s) / 100).toFixed(2)}</td>
                   </tr>
                 );
               })}
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan={3} className="text-right font-semibold">Total Sale Revenue</td>
+                <td colSpan={5} className="text-right font-semibold">Total Sale Revenue</td>
                 <td className="text-right font-bold text-indigo-600">{(totalRevenue / 100).toFixed(2)}</td>
               </tr>
             </tfoot>
